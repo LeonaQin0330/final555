@@ -1,0 +1,112 @@
+---
+title: "Interactive Visualizations"
+author: "Haowen Qin"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    self_contained: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+## Dataset Overview {.tabset}
+
+### Data Source
+The dataset used in this study originates from the American College of Surgeons National Surgical Quality Improvement Program (ACS NSQIP) and is confidential. It includes 1,720 observations of patients who underwent femur shaft fracture surgery, with an average patient age of approximately 70 years. Data were collected from 2022 to 2024 across multiple clinical sites participating in the NSQIP initiative. Collection was performed through clinical chart abstraction and standardized reporting. The dataset provides a rich array of patient demographics, clinical markers, and procedural outcomes.
+
+### Visualizations Summary
+This dashboard focuses on two outcome-related visualizations:
+
+1. Diabetes status vs. smoking status, for identifying metabolic risk patterns.
+
+2. Preoperative Hematocrit distribution by BMI group, to assess anemia profiles.
+
+## Smoking Status vs. Diabetes Prevalence
+
+```{r}
+library(dplyr)
+library(highcharter)
+library(readr)
+
+# Load Data
+data <- read_csv("/Users/leona/Documents/Emory/DATA555/data6.csv")
+data$SMOKE <- as.factor(data$SMOKE)
+data$DIABETES <- as.factor(data$DIABETES)
+
+# Create Highcharter plot
+hc <- data %>%
+  mutate(SMOKE = recode(SMOKE, `0` = "No Smoking", `1` = "Smoker")) %>%
+  count(DIABETES, SMOKE) %>%
+  hchart("column", hcaes(x = DIABETES, y = n, group = SMOKE)) %>%
+  hc_title(text = "Smoking Status vs. Diabetes Prevalence") %>%
+  hc_xAxis(
+    title = list(text = "Diabetes Status"),
+    categories = c("No Diabetes", "Non-Insulin Dependent", "Insulin Dependent")
+  ) %>%
+  hc_yAxis(title = list(text = "Number of Patients")) %>%
+  hc_tooltip(pointFormat = "<b>Diabetes: {point.category}</b><br>Smoking Status: {series.name}<br>Patients: {point.y}") %>%
+  hc_legend(title = list(text = "Smoking Status"), enabled = TRUE)
+
+hc
+```
+
+### Key Takeaways
+The figure illustrates the relationship between smoking status and diabetes prevalence. The majority of patients fall into the Non-Insulin Dependent Diabetes category, with a significantly higher proportion of non-smokers compared to smokers. Across all diabetes categories, the number of non-smokers is consistently higher than smokers, suggesting that smoking may be less common among individuals with diabetes in the population surveyed in this dataset.
+
+A tooltip box appears when hovering over a bar, showing the diabetes category, smoking status, and patient count; Users can also show/hide smokers or non-smokers by clicking on the legend.
+
+---
+
+## Preoperative Hematocrit Distribution by BMI Category
+
+```{r}
+library(plotly)
+
+# Data processing
+data <- data %>%
+  mutate(BMI_Category = case_when(
+    BMI < 25 ~ "Normal Weight",
+    BMI >= 25 & BMI < 30 ~ "Overweight",
+    BMI >= 30 ~ "Obese",
+    TRUE ~ "Unknown"
+  ))
+
+# Filter datasets
+normal_weight_data <- data %>% filter(BMI_Category == "Normal Weight")
+overweight_data <- data %>% filter(BMI_Category == "Overweight")
+obese_data <- data %>% filter(BMI_Category == "Obese")
+
+# Create three histograms
+normal_weight_plot <- plot_ly(normal_weight_data, x = ~PRHCT, type = "histogram", name = "Normal Weight")
+overweight_plot <- plot_ly(overweight_data, x = ~PRHCT, type = "histogram", name = "Overweight")
+obese_plot <- plot_ly(obese_data, x = ~PRHCT, type = "histogram", name = "Obese")
+
+# Combine plots
+hct_subplot <- subplot(normal_weight_plot, overweight_plot, obese_plot, nrows = 1, shareX = TRUE, shareY = TRUE) %>%
+  layout(
+    title = "Preoperative Hematocrit (HCT) Distribution by BMI Category",
+    autosize = TRUE,
+    showlegend = TRUE,
+    legend = list(title = list(text = "BMI Category")),
+    xaxis = list(domain = c(0, 0.33)),
+    xaxis2 = list(domain = c(0.33, 0.66)),
+    xaxis3 = list(domain = c(0.66, 1))
+  )
+
+hct_subplot
+```
+
+
+### Key Takeaways
+The figure illustrates the distribution of preoperative hematocrit (HCT) levels across different BMI categories. In general, the HCT values range from 20% to 50%. Obese patients show a right-skewed distribution with a higher proportion of patients in the 40-50% range, while normal-weight patients have a more concentrated distribution around the 35% peak, primarily within the 30-40% range.
+
+Users can toggle the visibility of different BMI categories by clicking on the legend, allowing for a focused view of a specific category; Hovering over any bin of the histogram will display a tooltip showing the BMI Category, the Hematocrit (%) range, and the count of patients in that bin; The Box Select feature enables users to click and drag to highlight specific regions of the plot. Once selected, users can quickly identify data points that meet certain criteria, such as bins with a patient count less than 20, providing an efficient way to explore data subsets.
+
+---
+
+## Project Importance {.tabset}
+
+This dashboard explores the relationship between smoking status and diabetes prevalence among surgical patients, highlighting potential compounding risk factors. It also examines how preoperative hematocrit levels vary by BMI category, providing insights into anemia risk stratification before femur shaft fracture surgeries.
